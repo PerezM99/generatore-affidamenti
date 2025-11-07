@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import LoadingScreen from "../components/LoadingScreen";
 import DocumentViewer from "../components/DocumentViewer";
 
@@ -13,6 +15,8 @@ interface GeneratedDocument {
 }
 
 export default function Dashboard() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedDocs, setSelectedDocs] = useState({
     affidamento: false,
@@ -43,6 +47,13 @@ export default function Dashboard() {
   const handleGenerate = () => {
     setIsGenerating(true);
   };
+
+  // Proteggi la route - redirect se non autenticato
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
 
   // Simula il completamento della generazione documenti
   useEffect(() => {
@@ -194,6 +205,16 @@ _______________________`
     });
   };
 
+  // Mostra loading mentre verifica la sessione
+  if (status === "loading") {
+    return <LoadingScreen />;
+  }
+
+  // Se non autenticato, non mostrare nulla (verrà reindirizzato)
+  if (status === "unauthenticated") {
+    return null;
+  }
+
   if (isGenerating) {
     return <LoadingScreen />;
   }
@@ -256,13 +277,23 @@ _______________________`
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-gold/20 rounded-full flex items-center justify-center">
-              <span className="text-gold font-semibold text-sm">U</span>
+              <span className="text-gold font-semibold text-sm">
+                {session?.user?.email?.[0].toUpperCase() || "U"}
+              </span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-foreground truncate">Utente</div>
-              <div className="text-xs text-foreground/60">utente@esempio.it</div>
+              <div className="text-sm font-medium text-foreground truncate">
+                {session?.user?.name || "Utente"}
+              </div>
+              <div className="text-xs text-foreground/60 truncate">
+                {session?.user?.email || "caricamento..."}
+              </div>
             </div>
-            <button className="text-foreground/60 hover:text-foreground transition-colors">
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="text-foreground/60 hover:text-foreground transition-colors"
+              title="Logout"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
