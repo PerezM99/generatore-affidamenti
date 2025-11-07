@@ -1,7 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import LoadingScreen from "../components/LoadingScreen";
+import DocumentViewer from "../components/DocumentViewer";
+
+interface GeneratedDocument {
+  id: string;
+  type: "affidamento" | "proposta" | "determina";
+  title: string;
+  content: string;
+}
 
 export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -10,6 +19,8 @@ export default function Dashboard() {
     proposta: false,
     determina: false,
   });
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDocument[] | null>(null);
 
   // Mock data per documenti precedenti
   const previousDocs = [
@@ -28,6 +39,168 @@ export default function Dashboard() {
   const toggleDoc = (doc: keyof typeof selectedDocs) => {
     setSelectedDocs(prev => ({ ...prev, [doc]: !prev[doc] }));
   };
+
+  const handleGenerate = () => {
+    setIsGenerating(true);
+  };
+
+  // Simula il completamento della generazione documenti
+  useEffect(() => {
+    if (isGenerating) {
+      // Dopo circa 7.5 secondi (durata totale degli step del loading)
+      const timer = setTimeout(() => {
+        // Genera documenti mock basati sulle selezioni
+        const docs: GeneratedDocument[] = [];
+
+        if (selectedDocs.affidamento) {
+          docs.push({
+            id: "affidamento-1",
+            type: "affidamento",
+            title: "Affidamento Diretto",
+            content: `AFFIDAMENTO DIRETTO
+
+Oggetto: Affidamento diretto per la fornitura di servizi
+
+PREMESSO CHE:
+- È necessario procedere all'affidamento diretto per la fornitura di servizi;
+- L'importo previsto è inferiore alla soglia comunitaria;
+- Il fornitore individuato possiede i requisiti necessari;
+
+VISTO:
+- Il D.Lgs. 36/2023 (Codice dei contratti pubblici);
+- Il preventivo presentato dal fornitore;
+- La disponibilità di bilancio;
+
+DETERMINA
+
+Art. 1 - Di affidare al fornitore [NOME FORNITORE] i seguenti servizi:
+[DESCRIZIONE SERVIZI]
+
+Art. 2 - L'importo complessivo dell'affidamento è pari a € [IMPORTO]
+
+Art. 3 - Il termine di esecuzione è fissato in [GIORNI] giorni dalla firma del contratto.
+
+Luogo e Data: ___________________
+
+Il Responsabile
+_______________________`
+          });
+        }
+
+        if (selectedDocs.proposta) {
+          docs.push({
+            id: "proposta-1",
+            type: "proposta",
+            title: "Proposta d'Affidamento",
+            content: `PROPOSTA D'AFFIDAMENTO
+
+Al Responsabile [UFFICIO]
+Oggetto: Proposta di affidamento diretto
+
+Si propone l'affidamento diretto dei seguenti servizi/forniture:
+
+1. OGGETTO DELL'AFFIDAMENTO
+Descrizione dettagliata dei servizi/forniture richiesti:
+[DESCRIZIONE DETTAGLIATA]
+
+2. MOTIVAZIONI
+Le ragioni che rendono necessario l'affidamento:
+- Necessità urgente di [SERVIZIO/FORNITURA]
+- Specificità delle prestazioni richieste
+- Continuità operativa
+
+3. FORNITORE INDIVIDUATO
+Ragione sociale: [NOME FORNITORE]
+Partita IVA: [P.IVA]
+Indirizzo: [INDIRIZZO]
+
+4. IMPORTO
+L'importo complessivo previsto è di € [IMPORTO] (IVA esclusa)
+
+5. COPERTURA FINANZIARIA
+Capitolo di bilancio: [CAPITOLO]
+Disponibilità: € [DISPONIBILITÀ]
+
+6. NORMATIVA DI RIFERIMENTO
+- D.Lgs. 36/2023
+- Regolamento interno dell'Ente
+
+Si chiede pertanto l'autorizzazione a procedere con l'affidamento diretto.
+
+Data: ___________________
+
+Il Proponente
+_______________________`
+          });
+        }
+
+        if (selectedDocs.determina) {
+          docs.push({
+            id: "determina-1",
+            type: "determina",
+            title: "Determina Dirigenziale",
+            content: `DETERMINA DIRIGENZIALE N. _____
+
+IL DIRIGENTE
+
+VISTI:
+- Il D.Lgs. 36/2023 (Codice dei contratti pubblici);
+- Lo Statuto comunale/provinciale;
+- Il Regolamento di contabilità;
+
+RICHIAMATI:
+- La delibera di Giunta n. ____ del ______;
+- Il Piano Esecutivo di Gestione;
+
+CONSIDERATO CHE:
+- È necessario procedere all'acquisizione di [OGGETTO];
+- L'importo previsto rientra nei limiti di competenza dirigenziale;
+- È stata effettuata la necessaria ricerca di mercato;
+
+ACCERTATO:
+- La disponibilità della somma sul capitolo di bilancio ______
+- La regolarità contributiva del fornitore
+- Il possesso dei requisiti di legge
+
+DETERMINA
+
+1. Di approvare l'affidamento a [FORNITORE] per € [IMPORTO] + IVA
+2. Di impegnare la somma sul capitolo [CAPITOLO] del bilancio
+3. Di dare atto che si provvederà alla liquidazione a seguito di regolare fatturazione
+4. Di trasmettere copia del presente atto ai servizi competenti
+
+Lì, ___________________
+
+IL DIRIGENTE
+_______________________`
+          });
+        }
+
+        setGeneratedDocuments(docs);
+        setIsGenerating(false);
+      }, 7500); // Durata totale degli step
+
+      return () => clearTimeout(timer);
+    }
+  }, [isGenerating, selectedDocs]);
+
+  const handleCloseViewer = () => {
+    setGeneratedDocuments(null);
+    setSelectedFile(null);
+    setSelectedDocs({
+      affidamento: false,
+      proposta: false,
+      determina: false,
+    });
+  };
+
+  if (isGenerating) {
+    return <LoadingScreen />;
+  }
+
+  if (generatedDocuments && generatedDocuments.length > 0) {
+    return <DocumentViewer documents={generatedDocuments} onClose={handleCloseViewer} />;
+  }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -226,6 +399,7 @@ export default function Dashboard() {
                 Annulla
               </button>
               <button
+                onClick={handleGenerate}
                 disabled={!selectedFile || (!selectedDocs.affidamento && !selectedDocs.proposta && !selectedDocs.determina)}
                 className="px-8 py-3 bg-gold hover:bg-gold-dark transition-all rounded-lg text-background font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-gold/20"
               >
