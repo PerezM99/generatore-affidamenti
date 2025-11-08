@@ -42,15 +42,16 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String       @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?      @unique
   emailVerified DateTime?
   image         String?
   accounts      Account[]
   sessions      Session[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  preventivi    Preventivo[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model VerificationToken {
@@ -59,4 +60,39 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Modello per i preventivi caricati
+model Preventivo {
+  id        String   @id @default(cuid())
+
+  // File info
+  fileName  String
+  fileSize  Int
+  filePath  String
+
+  // Testo estratto dal PDF
+  rawText   String?  @db.Text
+
+  // Dati strutturati estratti dal LLM (JSON)
+  // Contiene: { importo, fornitore, descrizione, date, etc. }
+  extractedData Json?
+
+  // Stato del processing
+  status    PreventivoStatus @default(UPLOADED)
+  errorMessage String?
+
+  // Relazione con utente che ha caricato
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PreventivoStatus {
+  UPLOADED      // File caricato
+  EXTRACTED     // Testo estratto dal PDF
+  PARSED        // Dati strutturati dal LLM
+  ERROR         // Errore durante processing
 }
