@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
         fileName: preventivo.fileName,
         fileSize: preventivo.fileSize,
         numPages: pdfInfo.numPages,
+        rawText: preventivo.rawText, // Testo completo per la visualizzazione
         textPreview: pdfInfo.text.substring(0, 500) + "...", // Anteprima primi 500 caratteri
         status: preventivo.status,
         createdAt: preventivo.createdAt,

@@ -5,13 +5,26 @@ import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import LoadingScreen from "../components/LoadingScreen";
+import ProcessingScreen from "../components/ProcessingScreen";
 import DocumentViewer from "../components/DocumentViewer";
+import ExtractedDataView from "../components/ExtractedDataView";
+import PreventivoViewer from "../components/PreventivoViewer";
+import { ExtractedData } from "@/lib/llm-parser";
 
 interface GeneratedDocument {
   id: string;
   type: "affidamento" | "proposta" | "determina";
   title: string;
   content: string;
+}
+
+interface Preventivo {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  status: string;
+  extractedData: ExtractedData | null;
+  createdAt: string;
 }
 
 export default function Dashboard() {
@@ -24,7 +37,14 @@ export default function Dashboard() {
     determina: false,
   });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDocument[] | null>(null);
+  const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
+  const [currentPreventivoId, setCurrentPreventivoId] = useState<string | null>(null);
+  const [rawText, setRawText] = useState<string | null>(null);
+  const [showRawText, setShowRawText] = useState(false);
+  const [showExtractedData, setShowExtractedData] = useState(false);
+  const [showPreventivoViewer, setShowPreventivoViewer] = useState(false);
 
   // Mock data per documenti precedenti
   const previousDocs = [
@@ -44,8 +64,99 @@ export default function Dashboard() {
     setSelectedDocs(prev => ({ ...prev, [doc]: !prev[doc] }));
   };
 
-  const handleGenerate = () => {
-    setIsGenerating(true);
+  const handleUploadAndProcess = async () => {
+    if (!selectedFile) return;
+
+    setIsProcessing(true);
+
+    try {
+      // 1. Upload PDF e estrai testo
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const uploadRes = await fetch("/api/preventivi/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        const error = await uploadRes.json();
+        throw new Error(error.error || "Upload fallito");
+      }
+
+      const uploadData = await uploadRes.json();
+      const preventivoId = uploadData.preventivo.id;
+      const extractedText = uploadData.preventivo.rawText;
+
+      // 2. Mostra testo estratto (non chiama ancora l'LLM)
+      setRawText(extractedText);
+      setCurrentPreventivoId(preventivoId);
+      setShowRawText(true);
+      setIsProcessing(false);
+
+    } catch (error) {
+      console.error("Errore:", error);
+      alert(error instanceof Error ? error.message : "Errore durante l'elaborazione del preventivo");
+      setIsProcessing(false);
+    }
+  };
+
+  const handleParseLLM = async () => {
+    if (!currentPreventivoId) return;
+
+    setIsProcessing(true);
+
+    try {
+      // Parse con LLM
+      const parseRes = await fetch("/api/preventivi/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preventivoId: currentPreventivoId }),
+      });
+
+      if (!parseRes.ok) {
+        const error = await parseRes.json();
+        throw new Error(error.error || "Parsing fallito");
+      }
+
+      const parseData = await parseRes.json();
+
+      // Mostra dati estratti
+      setExtractedData(parseData.preventivo.extractedData);
+      setShowRawText(false);
+      setShowExtractedData(true);
+      setIsProcessing(false);
+
+    } catch (error) {
+      console.error("Errore:", error);
+      alert(error instanceof Error ? error.message : "Errore durante l'elaborazione del preventivo");
+      setIsProcessing(false);
+    }
+  };
+
+  const handleConfirmData = () => {
+    setShowExtractedData(false);
+    // Qui poi implementerai la generazione documenti
+    alert("Generazione documenti da implementare!");
+  };
+
+  const handleEditData = () => {
+    alert("Funzione modifica manuale da implementare!");
+  };
+
+  const handleViewPDF = () => {
+    setShowExtractedData(false);
+    setShowPreventivoViewer(true);
+  };
+
+  const handleBackFromViewer = () => {
+    setShowPreventivoViewer(false);
+    setShowExtractedData(true);
+  };
+
+  const handleGenerateFromViewer = () => {
+    // Implementare generazione documenti
+    alert("Generazione documenti da implementare!");
   };
 
   // Proteggi la route - redirect se non autenticato
@@ -55,7 +166,7 @@ export default function Dashboard() {
     }
   }, [status, router]);
 
-  // Simula il completamento della generazione documenti
+  // Simula il completamento della generazione documenti (OLD - DA RIMUOVERE POI)
   useEffect(() => {
     if (isGenerating) {
       // Dopo circa 7.5 secondi (durata totale degli step del loading)
@@ -215,10 +326,88 @@ _______________________`
     return null;
   }
 
-  if (isGenerating) {
-    return <LoadingScreen />;
+  // Mostra ProcessingScreen durante elaborazione PDF
+  if (isProcessing) {
+    // Determina la fase in base allo stato corrente
+    const phase = showRawText ? "llm-parsing" : "upload";
+    return <ProcessingScreen phase={phase} />;
   }
 
+  // Mostra testo raw estratto dal PDF
+  if (showRawText && rawText) {
+    return (
+      <div className="min-h-screen bg-background p-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-foreground mb-2">
+              Testo Estratto dal PDF
+            </h1>
+            <p className="text-sm text-foreground/60">
+              Verifica che il testo sia stato estratto correttamente prima di procedere con il parsing LLM
+            </p>
+          </div>
+
+          <div className="bg-card-bg border border-border rounded-xl p-6 mb-6">
+            <div className="bg-background rounded-lg p-4 max-h-[500px] overflow-y-auto">
+              <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
+                {rawText}
+              </pre>
+            </div>
+            <div className="mt-4 text-sm text-foreground/60">
+              Lunghezza testo: {rawText.length} caratteri
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              onClick={() => {
+                setShowRawText(false);
+                setRawText(null);
+                setCurrentPreventivoId(null);
+              }}
+              className="px-6 py-3 bg-background hover:bg-background/60 border border-border rounded-lg text-foreground font-medium transition-all"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleParseLLM}
+              className="px-8 py-3 bg-gold hover:bg-gold-dark transition-all rounded-lg text-background font-semibold shadow-lg shadow-gold/20"
+            >
+              Procedi con Parsing LLM
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostra viewer PDF con dati estratti
+  if (showPreventivoViewer && extractedData && currentPreventivoId) {
+    const pdfUrl = `/api/preventivi/${currentPreventivoId}/file`;
+    return (
+      <PreventivoViewer
+        preventivoId={currentPreventivoId}
+        pdfUrl={pdfUrl}
+        extractedData={extractedData}
+        onBack={handleBackFromViewer}
+        onGenerate={handleGenerateFromViewer}
+      />
+    );
+  }
+
+  // Mostra dati estratti
+  if (showExtractedData && extractedData) {
+    return (
+      <ExtractedDataView
+        data={extractedData}
+        onConfirm={handleConfirmData}
+        onEdit={handleEditData}
+        onViewPDF={handleViewPDF}
+      />
+    );
+  }
+
+  // Mostra DocumentViewer per la vecchia generazione
   if (generatedDocuments && generatedDocuments.length > 0) {
     return <DocumentViewer documents={generatedDocuments} onClose={handleCloseViewer} />;
   }
@@ -247,30 +436,32 @@ _______________________`
           </button>
         </div>
 
-        {/* Lista documenti */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          <div className="text-xs text-foreground/50 px-3 py-2 font-medium">DOCUMENTI RECENTI</div>
-          {previousDocs.map((doc) => (
-            <button
-              key={doc.id}
-              className="w-full text-left px-3 py-3 rounded-lg hover:bg-background/60 transition-colors group"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-foreground font-medium truncate">
-                    {doc.name}
+        {/* Documenti recenti */}
+        <div className="flex-1 overflow-y-auto p-3">
+          <div>
+            <div className="text-xs text-foreground/50 px-3 py-2 font-medium">DOCUMENTI RECENTI</div>
+            {previousDocs.map((doc) => (
+              <button
+                key={doc.id}
+                className="w-full text-left px-3 py-3 rounded-lg hover:bg-background/60 transition-colors group"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-foreground font-medium truncate">
+                      {doc.name}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-foreground/60">{doc.type}</span>
+                      <span className="text-xs text-gold">{doc.amount}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-foreground/60">{doc.type}</span>
-                    <span className="text-xs text-gold">{doc.amount}</span>
-                  </div>
+                  <svg className="w-4 h-4 text-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                  </svg>
                 </div>
-                <svg className="w-4 h-4 text-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* User profile */}
@@ -424,17 +615,20 @@ _______________________`
               </div>
             </div>
 
-            {/* Generate button */}
+            {/* Analyze button */}
             <div className="flex justify-end gap-4">
               <button className="px-6 py-3 bg-card-bg hover:bg-card-bg/60 border border-border rounded-lg text-foreground font-medium transition-all">
                 Annulla
               </button>
               <button
-                onClick={handleGenerate}
-                disabled={!selectedFile || (!selectedDocs.affidamento && !selectedDocs.proposta && !selectedDocs.determina)}
-                className="px-8 py-3 bg-gold hover:bg-gold-dark transition-all rounded-lg text-background font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-gold/20"
+                onClick={handleUploadAndProcess}
+                disabled={!selectedFile}
+                className="px-8 py-3 bg-gold hover:bg-gold-dark transition-all rounded-lg text-background font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-gold/20 flex items-center gap-2"
               >
-                Genera documenti
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Analizza Preventivo
               </button>
             </div>
           </div>
