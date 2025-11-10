@@ -28,8 +28,13 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
                   if (text.R && Array.isArray(text.R)) {
                     for (const run of text.R) {
                       if (run.T) {
-                        // Decodifica l'URI encoding
-                        fullText += decodeURIComponent(run.T) + ' ';
+                        // Decodifica l'URI encoding con gestione errori
+                        try {
+                          fullText += decodeURIComponent(run.T) + ' ';
+                        } catch (e) {
+                          // Se la decodifica fallisce, usa il testo grezzo
+                          fullText += run.T + ' ';
+                        }
                       }
                     }
                   }
@@ -112,7 +117,13 @@ export async function extractPDFInfo(buffer: Buffer): Promise<PDFInfo> {
                   if (text.R && Array.isArray(text.R)) {
                     for (const run of text.R) {
                       if (run.T) {
-                        fullText += decodeURIComponent(run.T) + ' ';
+                        // Decodifica l'URI encoding con gestione errori
+                        try {
+                          fullText += decodeURIComponent(run.T) + ' ';
+                        } catch (e) {
+                          // Se la decodifica fallisce, usa il testo grezzo
+                          fullText += run.T + ' ';
+                        }
                       }
                     }
                   }

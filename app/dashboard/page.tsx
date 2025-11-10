@@ -8,7 +8,6 @@ import LoadingScreen from "../components/LoadingScreen";
 import ProcessingScreen from "../components/ProcessingScreen";
 import DocumentViewer from "../components/DocumentViewer";
 import ExtractedDataView from "../components/ExtractedDataView";
-import PreventivoViewer from "../components/PreventivoViewer";
 import { ExtractedData } from "@/lib/llm-parser";
 
 interface GeneratedDocument {
@@ -44,7 +43,7 @@ export default function Dashboard() {
   const [rawText, setRawText] = useState<string | null>(null);
   const [showRawText, setShowRawText] = useState(false);
   const [showExtractedData, setShowExtractedData] = useState(false);
-  const [showPreventivoViewer, setShowPreventivoViewer] = useState(false);
+  const [processingComplete, setProcessingComplete] = useState(false);
 
   // Mock data per documenti precedenti
   const previousDocs = [
@@ -68,6 +67,7 @@ export default function Dashboard() {
     if (!selectedFile) return;
 
     setIsProcessing(true);
+    setProcessingComplete(false);
 
     try {
       // 1. Upload PDF e estrai testo
@@ -88,7 +88,12 @@ export default function Dashboard() {
       const preventivoId = uploadData.preventivo.id;
       const extractedText = uploadData.preventivo.rawText;
 
-      // 2. Mostra testo estratto (non chiama ancora l'LLM)
+      // 2. Segna come completato e mostra testo estratto
+      setProcessingComplete(true);
+
+      // Dai tempo al ProcessingScreen di completare l'animazione
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       setRawText(extractedText);
       setCurrentPreventivoId(preventivoId);
       setShowRawText(true);
@@ -98,6 +103,7 @@ export default function Dashboard() {
       console.error("Errore:", error);
       alert(error instanceof Error ? error.message : "Errore durante l'elaborazione del preventivo");
       setIsProcessing(false);
+      setProcessingComplete(false);
     }
   };
 
@@ -105,6 +111,7 @@ export default function Dashboard() {
     if (!currentPreventivoId) return;
 
     setIsProcessing(true);
+    setProcessingComplete(false);
 
     try {
       // Parse con LLM
@@ -121,6 +128,12 @@ export default function Dashboard() {
 
       const parseData = await parseRes.json();
 
+      // Segna come completato
+      setProcessingComplete(true);
+
+      // Dai tempo al ProcessingScreen di completare l'animazione
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       // Mostra dati estratti
       setExtractedData(parseData.preventivo.extractedData);
       setShowRawText(false);
@@ -131,6 +144,7 @@ export default function Dashboard() {
       console.error("Errore:", error);
       alert(error instanceof Error ? error.message : "Errore durante l'elaborazione del preventivo");
       setIsProcessing(false);
+      setProcessingComplete(false);
     }
   };
 
@@ -142,21 +156,6 @@ export default function Dashboard() {
 
   const handleEditData = () => {
     alert("Funzione modifica manuale da implementare!");
-  };
-
-  const handleViewPDF = () => {
-    setShowExtractedData(false);
-    setShowPreventivoViewer(true);
-  };
-
-  const handleBackFromViewer = () => {
-    setShowPreventivoViewer(false);
-    setShowExtractedData(true);
-  };
-
-  const handleGenerateFromViewer = () => {
-    // Implementare generazione documenti
-    alert("Generazione documenti da implementare!");
   };
 
   // Proteggi la route - redirect se non autenticato
@@ -330,7 +329,7 @@ _______________________`
   if (isProcessing) {
     // Determina la fase in base allo stato corrente
     const phase = showRawText ? "llm-parsing" : "upload";
-    return <ProcessingScreen phase={phase} />;
+    return <ProcessingScreen phase={phase} isComplete={processingComplete} />;
   }
 
   // Mostra testo raw estratto dal PDF
@@ -381,20 +380,6 @@ _______________________`
     );
   }
 
-  // Mostra viewer PDF con dati estratti
-  if (showPreventivoViewer && extractedData && currentPreventivoId) {
-    const pdfUrl = `/api/preventivi/${currentPreventivoId}/file`;
-    return (
-      <PreventivoViewer
-        preventivoId={currentPreventivoId}
-        pdfUrl={pdfUrl}
-        extractedData={extractedData}
-        onBack={handleBackFromViewer}
-        onGenerate={handleGenerateFromViewer}
-      />
-    );
-  }
-
   // Mostra dati estratti
   if (showExtractedData && extractedData) {
     return (
@@ -402,7 +387,6 @@ _______________________`
         data={extractedData}
         onConfirm={handleConfirmData}
         onEdit={handleEditData}
-        onViewPDF={handleViewPDF}
       />
     );
   }

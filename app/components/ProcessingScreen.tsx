@@ -16,42 +16,53 @@ const uploadSteps: ProcessingStep[] = [
   { id: 3, text: "Salvataggio nel database...", duration: 700 },
 ];
 
-// Passi per parsing con LLM (lento, 10-30 secondi)
+// Passi per parsing con LLM (lento, diversi minuti)
 const llmSteps: ProcessingStep[] = [
-  { id: 1, text: "Connessione al modello AI locale (Ollama)...", duration: 2000 },
-  { id: 2, text: "Invio del testo al modello Qwen...", duration: 1500 },
-  { id: 3, text: "Analisi del contenuto del preventivo...", duration: 8000 },
-  { id: 4, text: "Estrazione importi e aliquote IVA...", duration: 5000 },
-  { id: 5, text: "Identificazione dati fornitore...", duration: 4000 },
-  { id: 6, text: "Riconoscimento date e scadenze...", duration: 3000 },
-  { id: 7, text: "Validazione e salvataggio dati...", duration: 2000 },
+  { id: 1, text: "Connessione al modello AI locale (Ollama)...", duration: 3000 },
+  { id: 2, text: "Invio del testo al modello Qwen...", duration: 2000 },
+  { id: 3, text: "Analisi del contenuto del preventivo...", duration: 45000 },
+  { id: 4, text: "Estrazione importi e aliquote IVA...", duration: 35000 },
+  { id: 5, text: "Identificazione dati fornitore...", duration: 30000 },
+  { id: 6, text: "Riconoscimento date e riferimenti...", duration: 25000 },
+  { id: 7, text: "Validazione e salvataggio dati...", duration: 20000 },
 ];
 
 interface ProcessingScreenProps {
   phase?: "upload" | "llm-parsing"; // Fase corrente
+  isComplete?: boolean; // Indica se il processo è terminato
 }
 
-export default function ProcessingScreen({ phase = "upload" }: ProcessingScreenProps) {
+export default function ProcessingScreen({ phase = "upload", isComplete = false }: ProcessingScreenProps) {
   const processingSteps = phase === "upload" ? uploadSteps : llmSteps;
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (currentStep < processingSteps.length) {
+      // Se il processo è completato e siamo agli ultimi 2 step, accelera
+      const shouldAccelerate = isComplete && currentStep >= processingSteps.length - 2;
+      const duration = shouldAccelerate ? 500 : processingSteps[currentStep].duration;
+
       const timer = setTimeout(() => {
         setCurrentStep(prev => prev + 1);
-      }, processingSteps[currentStep].duration);
+      }, duration);
 
       return () => clearTimeout(timer);
     }
-  }, [currentStep]);
+  }, [currentStep, isComplete, processingSteps]);
 
-  // Aggiorna progressbar
+  // Aggiorna progressbar - max 95% finché non è completato
   useEffect(() => {
     const totalSteps = processingSteps.length;
-    const newProgress = ((currentStep + 1) / totalSteps) * 100;
+    let newProgress = ((currentStep) / totalSteps) * 100;
+
+    // Non superare il 95% finché non è completato
+    if (!isComplete && newProgress > 95) {
+      newProgress = 95;
+    }
+
     setProgress(newProgress);
-  }, [currentStep]);
+  }, [currentStep, isComplete, processingSteps.length]);
 
   return (
     <div className="fixed inset-0 bg-background z-50 flex items-center justify-center">
@@ -246,7 +257,8 @@ export default function ProcessingScreen({ phase = "upload" }: ProcessingScreenP
                   </p>
                   <p className="text-xs text-foreground/60">
                     Il modello Qwen (Ollama) sta analizzando il documento per estrarre automaticamente
-                    importi, dati del fornitore, descrizioni e date. Questo processo può richiedere 20-30 secondi.
+                    importi, dati del fornitore, riferimenti protocollo e verificare tutti i calcoli.
+                    Questo processo può richiedere 2-4 minuti.
                   </p>
                 </>
               )}
