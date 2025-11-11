@@ -192,8 +192,8 @@ Genera il testo finale in italiano formale e corretto per i seguenti campi:
      ? `- Hai ${dati.vociPreventivo.length} voci da elencare
    - Formato richiesto: "${dati.Lettera === "a)" ? "dei lavori di" : dati.tipoServizioFornitura === "servizi" ? "del servizio di" : "la fornitura dei seguenti beni"}:"
    - Poi elenca: "N. [quantità] [descrizione], al costo unitario di € [prezzo] + IVA"
-   - Separa le voci con punto e virgola ";"
-   - Esempio: "la fornitura dei seguenti beni: N. 1 TV LG 55 pollici, al costo unitario di € 800,00 + IVA; N. 3 Mouse wireless, al costo unitario di € 25,00 + IVA"
+   - Separa le voci con A CAPO (\\n), NON usare punto e virgola
+   - Esempio: "la fornitura dei seguenti beni:\\nN. 1 TV LG 55 pollici, al costo unitario di € 800,00 + IVA\\nN. 3 Mouse wireless, al costo unitario di € 25,00 + IVA"
 
    VOCI DA FORMATTARE:
    ${dati.vociPreventivo.map(v => `- ${v.quantita ? `N. ${v.quantita}` : ""} ${v.descrizione}${v.prezzoUnitario ? `, al costo unitario di € ${v.prezzoUnitario.toFixed(2)} + IVA` : ""}`).join('\n   ')}`

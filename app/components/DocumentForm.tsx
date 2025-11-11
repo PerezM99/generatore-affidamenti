@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { ExtractedData } from "@/lib/llm-parser";
+import { numberToWords } from "@/lib/number-to-words";
+import TextInput from "./ui/TextInput";
+import SelectInput from "./ui/SelectInput";
+import TextAreaInput from "./ui/TextAreaInput";
 
 interface Dirigente {
   id: string;
@@ -56,9 +61,9 @@ export default function DocumentForm({
         const qta = v.quantita ? `N. ${v.quantita} ` : "";
         const prezzo = v.prezzoUnitario ? `, al costo unitario di € ${v.prezzoUnitario.toFixed(2)} + IVA` : "";
         return `${qta}${v.descrizione}${prezzo}`;
-      }).join("; ");
+      }).join("\n"); // Usa a capo invece di `;`
 
-      return `${articolo}: ${voci}`;
+      return `${articolo}:\n${voci}`;
     }
     return extractedData.oggetto || "";
   });
@@ -200,87 +205,86 @@ export default function DocumentForm({
   const mostraProposta = rupSelezionato && dirigenteId !== rupId;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-8">
       {/* Header del documento */}
-      <div className="bg-card-bg border border-border rounded-xl p-8 font-mono text-sm space-y-4">
-        <h2 className="text-lg font-bold text-gold mb-4 font-sans">Documento di Affidamento</h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="bg-card-bg border border-border/50 rounded-2xl p-10 space-y-6 shadow-lg"
+      >
+        <div className="flex items-center justify-between border-b border-border/30 pb-4">
+          <h2 className="text-xl font-semibold text-gold">Documento di Affidamento</h2>
+          <span className="text-xs text-foreground/40 font-mono">M-APP-08A rev.00</span>
+        </div>
 
         {/* Metodo invio (sx) e destinatario (dx) */}
         <div className="flex justify-between items-start">
           {/* Sinistra: Via */}
-          <div className="flex items-center gap-2">
-            <span className="text-foreground">Via</span>
-            <select
+          <div className="flex items-center gap-4">
+            <span className="text-foreground/70 text-base font-medium">Via</span>
+            <SelectInput
               value={metodoInvio}
               onChange={(e) => setMetodoInvio(e.target.value)}
-              className="bg-background border border-gold rounded px-3 py-1 text-foreground font-sans"
+              className="w-auto min-w-[180px]"
             >
               <option>PEC</option>
               <option>Raccomandata</option>
               <option>Email</option>
-            </select>
+            </SelectInput>
           </div>
 
           {/* Destra: Dati fornitore (uno per riga) */}
-          <div className="text-right space-y-1 min-w-[400px]">
-            <div className="text-foreground/80 text-sm">Spett.le</div>
-            <div>
-              <input
-                type="text"
-                value={fRagione}
-                onChange={(e) => setFRagione(e.target.value)}
-                placeholder="Ragione Sociale"
-                className="w-full text-right bg-background border border-gold rounded px-3 py-1 text-foreground font-sans"
-                required
-              />
-            </div>
-            <div>
-              <input
-                type="text"
-                value={fIndirizzo}
-                onChange={(e) => setFIndirizzo(e.target.value)}
-                placeholder="Via Roma, 10"
-                className="w-full text-right bg-background border border-gold rounded px-3 py-1 text-foreground font-sans"
-              />
-            </div>
-            <div>
-              <input
-                type="text"
-                value={`${fCap} ${fComune}${fProvincia ? ` (${fProvincia})` : ""}`}
-                onChange={(e) => {
-                  const parts = e.target.value.split(" ");
-                  setFCap(parts[0] || "");
-                  const resto = parts.slice(1).join(" ");
-                  const match = resto.match(/^(.+?)\s*\(([A-Z]{2})\)$/);
-                  if (match) {
-                    setFComune(match[1].trim());
-                    setFProvincia(match[2]);
-                  } else {
-                    setFComune(resto);
-                  }
-                }}
-                placeholder="46100 Mantova (MN)"
-                className="w-full text-right bg-background border border-gold rounded px-3 py-1 text-foreground font-sans"
-              />
-            </div>
-            <div>
-              <input
-                type="email"
-                value={fMail}
-                onChange={(e) => setFMail(e.target.value)}
-                placeholder="email@fornitore.it"
-                className="w-full text-right bg-background border border-border rounded px-3 py-1 text-foreground/80 font-sans text-sm"
-              />
-            </div>
-            <div>
-              <input
-                type="email"
-                value={fPec}
-                onChange={(e) => setFPec(e.target.value)}
-                placeholder="pec@fornitore.it"
-                className="w-full text-right bg-background border border-border rounded px-3 py-1 text-foreground/80 font-sans text-sm"
-              />
-            </div>
+          <div className="text-right space-y-2.5 min-w-[450px]">
+            <div className="text-foreground/60 text-sm font-medium">Spett.le</div>
+            <TextInput
+              type="text"
+              value={fRagione}
+              onChange={(e) => setFRagione(e.target.value)}
+              placeholder="Ragione Sociale"
+              className="text-right"
+              variant="highlight"
+              required
+            />
+            <TextInput
+              type="text"
+              value={fIndirizzo}
+              onChange={(e) => setFIndirizzo(e.target.value)}
+              placeholder="Via Roma, 10"
+              className="text-right"
+            />
+            <TextInput
+              type="text"
+              value={`${fCap} ${fComune}${fProvincia ? ` (${fProvincia})` : ""}`}
+              onChange={(e) => {
+                const parts = e.target.value.split(" ");
+                setFCap(parts[0] || "");
+                const resto = parts.slice(1).join(" ");
+                const match = resto.match(/^(.+?)\s*\(([A-Z]{2})\)$/);
+                if (match) {
+                  setFComune(match[1].trim());
+                  setFProvincia(match[2]);
+                } else {
+                  setFComune(resto);
+                }
+              }}
+              placeholder="46100 Mantova (MN)"
+              className="text-right"
+            />
+            <TextInput
+              type="email"
+              value={fMail}
+              onChange={(e) => setFMail(e.target.value)}
+              placeholder="email@fornitore.it"
+              className="text-right text-sm"
+            />
+            <TextInput
+              type="email"
+              value={fPec}
+              onChange={(e) => setFPec(e.target.value)}
+              placeholder="pec@fornitore.it"
+              className="text-right text-sm"
+            />
           </div>
         </div>
 
@@ -292,60 +296,60 @@ export default function DocumentForm({
 
         {/* Oggetto */}
         <div className="space-y-2 pt-4">
-          <div className="font-bold text-foreground">OGGETTO:</div>
-          <div className="pl-4 space-y-2">
+          <div className="flex justify-between items-start">
+            <div className="font-bold text-foreground">OGGETTO:</div>
+            <div className="flex-1 pl-12 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-foreground">Affidamento diretto, ai sensi dell'art. 50, comma 1, lettera</span>
-              <select
+              <SelectInput
                 value={lettera}
                 onChange={(e) => setLettera(e.target.value as "a)" | "b)")}
-                className="bg-background border border-gold rounded px-2 py-1 text-foreground font-sans"
+                className="w-auto min-w-[200px]"
                 required
               >
                 <option value="a)">a) lavori</option>
                 <option value="b)">b) servizi/forniture</option>
-              </select>
+              </SelectInput>
               <span className="text-foreground">del D.Lgs. 36/2023,</span>
             </div>
 
-            <textarea
+            <TextAreaInput
               value={oggetto}
               onChange={(e) => setOggetto(e.target.value)}
               placeholder="Oggetto dell'affidamento (es. del servizio di manutenzione...)"
-              className="w-full bg-background border border-gold rounded px-3 py-2 text-foreground font-sans"
+              label=""
               rows={2}
               required
             />
 
             {lettera === "a)" && (
-              <div className="space-y-2">
-                <input
+              <div className="space-y-3">
+                <TextInput
                   type="text"
                   value={cup}
                   onChange={(e) => setCup(e.target.value)}
                   placeholder="CUP (Codice Unico di Progetto)"
-                  className="w-full bg-background border border-gold rounded px-3 py-2 text-foreground font-sans"
                 />
-                <input
+                <TextInput
                   type="text"
                   value={codiceLavoro}
                   onChange={(e) => setCodiceLavoro(e.target.value)}
                   placeholder="Codice Lavoro"
-                  className="w-full bg-background border border-gold rounded px-3 py-2 text-foreground font-sans"
                 />
               </div>
             )}
 
-            <div className="flex items-center gap-2">
-              <span className="text-foreground">Capitolo di bilancio:</span>
-              <input
+            <div className="flex items-center gap-3">
+              <span className="text-foreground whitespace-nowrap">Capitolo di bilancio:</span>
+              <TextInput
                 type="text"
                 value={capitoloBilancio}
                 onChange={(e) => setCapitoloBilancio(e.target.value)}
                 placeholder="Codice capitolo"
-                className="flex-1 bg-background border border-gold rounded px-3 py-2 text-foreground font-sans"
+                className="flex-1"
                 required
               />
+            </div>
             </div>
           </div>
         </div>
@@ -360,27 +364,32 @@ export default function DocumentForm({
 
           {/* Proposta RUP */}
           {mostraProposta && (
-            <div className="pl-4 space-y-2 bg-gold/10 p-3 rounded">
-              <div className="text-foreground">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gold/5 border border-gold/20 rounded-xl p-5"
+            >
+              <div className="text-foreground/70 text-sm mb-2">Proposta del RUP</div>
+              <div className="text-foreground text-base">
                 vista la proposta del Responsabile Unico del Progetto{" "}
-                <span className="text-gold font-bold">
+                <span className="text-gold font-semibold">
                   {rupSelezionato.titolo} {rupSelezionato.nome} {rupSelezionato.cognome}
                 </span>
                 {totaleNumero > 5000 && (
-                  <>
-                    {" "}in data{" "}
-                    <input
+                  <div className="mt-3">
+                    <TextInput
                       type="text"
+                      label="in data"
                       value={dataPropostaRup}
                       onChange={(e) => setDataPropostaRup(e.target.value)}
                       placeholder="GG/MM/AAAA"
-                      className="w-32 bg-background border border-gold rounded px-2 py-1 text-foreground font-sans"
+                      className="w-48"
                       pattern="\d{2}/\d{2}/\d{4}"
                     />
-                  </>
+                  </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           )}
 
           <div className="text-foreground">
@@ -389,23 +398,23 @@ export default function DocumentForm({
             <span className="text-gold font-bold">{fCfIva || "[CF/PIVA]"}</span>
           </div>
 
-          <textarea
+          <TextAreaInput
             value={descrizione}
             onChange={(e) => setDescrizione(e.target.value)}
             placeholder="Descrizione dettagliata dell'affidamento..."
-            className="w-full bg-background border border-gold rounded px-3 py-2 text-foreground font-sans"
+            label=""
             rows={4}
             required
           />
 
-          <div className="flex items-center gap-2">
-            <span className="text-foreground">CPV:</span>
-            <input
+          <div className="flex items-center gap-3">
+            <span className="text-foreground whitespace-nowrap">CPV:</span>
+            <TextInput
               type="text"
               value={cpv}
               onChange={(e) => setCpv(e.target.value)}
               placeholder="Codice CPV"
-              className="flex-1 bg-background border border-gold rounded px-3 py-2 text-foreground font-sans"
+              className="flex-1"
             />
           </div>
 
@@ -415,138 +424,130 @@ export default function DocumentForm({
           </div>
         </div>
 
-        {/* Note opzionali */}
-        <div className="space-y-3 pt-4 border-t border-border">
-          <div>
-            <label className="text-foreground/80 text-xs font-sans">Condizioni (opzionale)</label>
-            <textarea
-              value={condizioni}
-              onChange={(e) => setCondizioni(e.target.value)}
-              placeholder="Condizioni particolari..."
-              className="w-full bg-background border border-border rounded px-3 py-2 text-foreground font-sans text-xs"
-              rows={2}
-            />
-          </div>
+        {/* Note opzionali - collapsabili */}
+        <div className="space-y-6 pt-6 border-t border-border/30">
+          <h3 className="text-base font-semibold text-foreground/80">Note Opzionali</h3>
 
-          <div>
-            <label className="text-foreground/80 text-xs font-sans">Tempistiche (opzionale)</label>
-            <textarea
-              value={tempistiche}
-              onChange={(e) => setTempistiche(e.target.value)}
-              placeholder="Tempistiche di consegna/esecuzione..."
-              className="w-full bg-background border border-border rounded px-3 py-2 text-foreground font-sans text-xs"
-              rows={2}
-            />
-          </div>
+          <TextAreaInput
+            label="Condizioni"
+            value={condizioni}
+            onChange={(e) => setCondizioni(e.target.value)}
+            placeholder="Condizioni particolari di pagamento o esecuzione..."
+            collapsible={true}
+            initialValue={extractedData.condizioniPagamento}
+          />
 
-          <div>
-            <label className="text-foreground/80 text-xs font-sans">Prescrizioni Tecniche (opzionale)</label>
-            <textarea
-              value={prescrizioniTecniche}
-              onChange={(e) => setPrescrizioniTecniche(e.target.value)}
-              placeholder="Prescrizioni tecniche particolari..."
-              className="w-full bg-background border border-border rounded px-3 py-2 text-foreground font-sans text-xs"
-              rows={2}
-            />
-          </div>
+          <TextAreaInput
+            label="Tempistiche"
+            value={tempistiche}
+            onChange={(e) => setTempistiche(e.target.value)}
+            placeholder="Tempistiche di consegna o esecuzione..."
+            collapsible={true}
+            initialValue={extractedData.tempiConsegna}
+          />
 
-          <div>
-            <label className="text-foreground/80 text-xs font-sans">Garanzie (opzionale)</label>
-            <textarea
-              value={garanzie}
-              onChange={(e) => setGaranzie(e.target.value)}
-              placeholder="Garanzie richieste..."
-              className="w-full bg-background border border-border rounded px-3 py-2 text-foreground font-sans text-xs"
-              rows={2}
-            />
-          </div>
+          <TextAreaInput
+            label="Prescrizioni Tecniche"
+            value={prescrizioniTecniche}
+            onChange={(e) => setPrescrizioniTecniche(e.target.value)}
+            placeholder="Prescrizioni tecniche particolari..."
+            collapsible={true}
+          />
+
+          <TextAreaInput
+            label="Garanzie"
+            value={garanzie}
+            onChange={(e) => setGaranzie(e.target.value)}
+            placeholder="Garanzie richieste..."
+            collapsible={true}
+          />
         </div>
 
         {/* Firme */}
-        <div className="pt-6 space-y-4">
-          <div>
-            <label className="text-foreground/80 text-xs font-sans font-bold block mb-2">
-              Seleziona Dirigente *
-            </label>
-            <select
-              value={dirigenteId}
-              onChange={(e) => setDirigenteId(e.target.value)}
-              className="w-full bg-background border border-gold rounded px-3 py-2 text-foreground font-sans"
-              required
-            >
-              <option value="">-- Seleziona Dirigente --</option>
-              {dirigenti.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.titolo} {d.nome} {d.cognome} ({d.ruolo === "GENERALE" ? "Direttore Generale" : "Direttore Area Territorio"})
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="pt-8 space-y-6 border-t border-border/30">
+          <h3 className="text-base font-semibold text-foreground/80">Firmatari</h3>
+
+          <SelectInput
+            label="Seleziona Dirigente *"
+            value={dirigenteId}
+            onChange={(e) => setDirigenteId(e.target.value)}
+            required
+          >
+            <option value="">-- Seleziona Dirigente --</option>
+            {dirigenti.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.titolo} {d.nome} {d.cognome} ({d.ruolo === "GENERALE" ? "Direttore Generale" : "Direttore Area Territorio"})
+              </option>
+            ))}
+          </SelectInput>
 
           {dirigenteSelezionato && (
-            <div className="text-foreground pl-4">
-              Il Direttore {dirigenteSelezionato.ruolo === "GENERALE" ? "Generale" : "Area Territorio"}
-              <br />
-              <span className="text-gold font-bold">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gold/5 border border-gold/20 rounded-xl p-4"
+            >
+              <div className="text-foreground/70 text-sm mb-1">
+                Il Direttore {dirigenteSelezionato.ruolo === "GENERALE" ? "Generale" : "Area Territorio"}
+              </div>
+              <div className="text-gold font-semibold text-base">
                 {dirigenteSelezionato.titolo} {dirigenteSelezionato.nome} {dirigenteSelezionato.cognome}
-              </span>
-            </div>
+              </div>
+            </motion.div>
           )}
 
-          <div>
-            <label className="text-foreground/80 text-xs font-sans font-bold block mb-2">
-              Seleziona RUP (opzionale, se diverso dal Dirigente)
-            </label>
-            <select
-              value={rupId}
-              onChange={(e) => setRupId(e.target.value)}
-              className="w-full bg-background border border-border rounded px-3 py-2 text-foreground font-sans"
-            >
-              <option value="">-- Nessun RUP (o RUP = Dirigente) --</option>
-              {rups.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.titolo} {r.nome} {r.cognome}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SelectInput
+            label="Seleziona RUP (opzionale, se diverso dal Dirigente)"
+            value={rupId}
+            onChange={(e) => setRupId(e.target.value)}
+          >
+            <option value="">-- Nessun RUP (o RUP = Dirigente) --</option>
+            {rups.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.titolo} {r.nome} {r.cognome}
+              </option>
+            ))}
+          </SelectInput>
 
-          <div className="text-foreground pl-4 pt-4 border-t border-border">
-            <div className="text-foreground/80 text-xs mb-2">Il Referente</div>
-            <div className="text-gold font-bold">{userName}</div>
-            <div className="text-foreground/80 text-sm">Tel. {userTelefono}</div>
-            <div className="text-foreground/80 text-sm">Email: {userEmail}</div>
+          <div className="bg-background/30 border border-border/30 rounded-xl p-5 mt-6">
+            <div className="text-foreground/60 text-sm mb-2.5 font-medium">Il Referente</div>
+            <div className="text-gold font-semibold text-base mb-2">{userName}</div>
+            <div className="text-foreground/70 text-sm space-y-1">
+              <div>Tel. {userTelefono}</div>
+              <div>Email: {userEmail}</div>
+            </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Pulsanti */}
-      <div className="flex justify-end gap-4">
-        <button
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="flex justify-end gap-4 pt-4"
+      >
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           type="button"
           onClick={() => window.history.back()}
-          className="px-6 py-3 rounded-lg border border-border text-foreground hover:bg-card-bg transition-colors"
+          className="px-8 py-3.5 rounded-xl border-2 border-border/50 text-foreground hover:bg-background/50 hover:border-border transition-all text-base font-medium"
         >
           Annulla
-        </button>
-        <button
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.02, boxShadow: "0 8px 30px rgba(34, 197, 94, 0.3)" }}
+          whileTap={{ scale: 0.98 }}
           type="submit"
-          className="bg-gold text-background px-8 py-3 rounded-lg hover:bg-gold/90 transition-colors font-medium"
+          className="bg-gold text-background px-10 py-3.5 rounded-xl hover:bg-gold/90 transition-all font-semibold text-base shadow-lg flex items-center gap-2"
         >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
           Genera Documento Word
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
     </form>
   );
-}
-
-// Helper per convertire numero in lettere (versione base)
-function numberToWords(num: number): string {
-  const parts = num.toFixed(2).split(".");
-  const integerPart = parts[0];
-  const decimalPart = parts[1];
-
-  // Per ora ritorna formato base, da migliorare con libreria dedicata
-  // TODO: Implementare conversione completa
-  return `${integerPart}/${decimalPart}`;
 }

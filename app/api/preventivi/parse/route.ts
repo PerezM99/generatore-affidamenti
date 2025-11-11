@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseWithLLM } from "@/lib/llm-parser";
 import { extractProtocollo } from "@/lib/pdf-extractor";
+import { matchFornitore, upsertFornitore } from "@/lib/fornitore-matcher";
 
 // 📚 IMPORTANTE: Aumenta il timeout a 5 minuti (300 secondi)
 // Qwen può impiegare 2-4 minuti per analizzare il preventivo
@@ -120,13 +121,77 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Dati combinati (LLM + regex protocollo)`);
 
-    // 10. Salva dati estratti nel database
+    // 10. Matching fornitore con database
+    let fornitoreId: string | null = null;
+    let fornitoreMatchData: any = null;
+
+    if (extractedData.fornitore) {
+      console.log(`\n🔍 Inizio matching fornitore con database...`);
+
+      try {
+        const fornitoreMatched = await matchFornitore(extractedData.fornitore);
+
+        // Sostituisci i dati del fornitore con quelli merged
+        extractedData.fornitore = {
+          ragioneSociale: fornitoreMatched.ragioneSociale,
+          codiceFiscale: fornitoreMatched.codiceFiscale,
+          partitaIva: fornitoreMatched.partitaIva,
+          indirizzo: fornitoreMatched.indirizzo,
+          cap: fornitoreMatched.cap,
+          comune: fornitoreMatched.comune,
+          provincia: fornitoreMatched.provincia,
+          email: fornitoreMatched.email,
+          pec: fornitoreMatched.pec,
+          telefono: fornitoreMatched.telefono,
+        };
+
+        // Salva dati di matching per mostrarli all'utente
+        fornitoreMatchData = {
+          fornitoreId: fornitoreMatched.fornitoreId,
+          isFromDatabase: fornitoreMatched.isFromDatabase,
+          matchCount: fornitoreMatched.matchCount,
+          matchedFields: fornitoreMatched.matchedFields,
+          conflicts: fornitoreMatched.conflicts || [],
+          newData: fornitoreMatched.newData || [],
+          needsUserInput: fornitoreMatched.needsUserInput || false,
+        };
+
+        // Se trovato nel DB, usa l'ID esistente
+        // Se non ci sono conflitti/dati nuovi, crea/aggiorna automaticamente
+        // Altrimenti aspetta conferma utente
+        if (!fornitoreMatched.needsUserInput) {
+          fornitoreId = await upsertFornitore(fornitoreMatched);
+
+          if (fornitoreMatched.isFromDatabase) {
+            console.log(`✅ Fornitore matchato nel DB: ${fornitoreMatched.ragioneSociale}`);
+            console.log(`   Match: ${fornitoreMatched.matchCount} campi (${fornitoreMatched.matchedFields?.join(", ")})`);
+          } else {
+            console.log(`➕ Nuovo fornitore creato: ${fornitoreMatched.ragioneSociale}`);
+          }
+        } else {
+          // Usa l'ID esistente ma NON aggiornare il DB
+          fornitoreId = fornitoreMatched.fornitoreId || null;
+          console.log(`⚠️ Richiesta conferma utente per ${fornitoreMatched.conflicts?.length || 0} conflitti e ${fornitoreMatched.newData?.length || 0} dati nuovi`);
+        }
+      } catch (matchError) {
+        console.error("⚠️ Errore durante matching fornitore:", matchError);
+        console.log("   Continuo con i dati estratti dal PDF...");
+      }
+    }
+
+    // 11. Salva dati estratti nel database (inclusi dati di matching)
+    const dataToSave = {
+      ...extractedData,
+      _fornitoreMatch: fornitoreMatchData, // Metadata di matching per UI
+    };
+
     const updatedPreventivo = await prisma.preventivo.update({
       where: { id: preventivoId },
       data: {
-        extractedData: extractedData as any, // Prisma Json type
+        extractedData: dataToSave as any, // Prisma Json type
         status: "PARSED",
         errorMessage: null,
+        fornitoreId: fornitoreId, // Collega al fornitore se trovato/creato
       },
     });
 
