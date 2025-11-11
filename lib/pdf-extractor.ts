@@ -90,6 +90,48 @@ export interface PDFInfo {
 }
 
 /**
+ * Dati protocollo estratti dal testo
+ */
+export interface ProtocolloData {
+  numeroProtocollo?: string;
+  dataProtocollo?: string;
+}
+
+/**
+ * Estrae numero e data del protocollo dal testo usando regex
+ * Cerca il pattern: "Reg. nr.XXXXXXX/AAAA del GG/MM/AAAA"
+ *
+ * @param text Testo grezzo estratto dal PDF
+ * @returns Oggetto con numeroProtocollo e dataProtocollo (se trovati)
+ */
+export function extractProtocollo(text: string): ProtocolloData {
+  // Pattern regex per: "Reg. nr.0005229/2025 del 11/09/2025"
+  // Supporta varianti: "Reg.nr.", "Reg nr", "Reg. nr."
+  const protocolloRegex = /Reg\.?\s*nr\.?\s*0*(\d+)\/(\d{4})\s+del\s+(\d{2}\/\d{2}\/\d{4})/i;
+
+  const match = text.match(protocolloRegex);
+
+  if (match) {
+    // match[1] = numero senza zeri iniziali (es. "5229")
+    // match[2] = anno (es. "2025")
+    // match[3] = data completa (es. "11/09/2025")
+
+    const numeroProtocollo = `${match[1]}/${match[2]}`; // "5229/2025"
+    const dataProtocollo = match[3]; // "11/09/2025"
+
+    console.log(`📋 Protocollo estratto: ${numeroProtocollo} del ${dataProtocollo}`);
+
+    return {
+      numeroProtocollo,
+      dataProtocollo,
+    };
+  }
+
+  console.log("⚠️ Protocollo non trovato nel testo");
+  return {};
+}
+
+/**
  * Estrae testo e metadati completi da un PDF
  *
  * @param buffer Buffer del file PDF

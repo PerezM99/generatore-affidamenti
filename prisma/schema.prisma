@@ -47,9 +47,14 @@ model User {
   email         String?      @unique
   emailVerified DateTime?
   image         String?
+
+  // Dati referente (per generazione documenti)
+  telefono      String?      // Interno telefonico
+
   accounts      Account[]
   sessions      Session[]
   preventivi    Preventivo[]
+  affidamenti   Affidamento[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -86,6 +91,13 @@ model Preventivo {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Relazione opzionale con fornitore (se identificato)
+  fornitoreId String?
+  fornitore   Fornitore? @relation(fields: [fornitoreId], references: [id])
+
+  // Documenti generati da questo preventivo
+  affidamenti Affidamento[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -95,4 +107,112 @@ enum PreventivoStatus {
   EXTRACTED     // Testo estratto dal PDF
   PARSED        // Dati strutturati dal LLM
   ERROR         // Errore durante processing
+}
+
+// Anagrafica fornitori
+model Fornitore {
+  id              String   @id @default(cuid())
+
+  // Dati anagrafici
+  ragioneSociale  String
+  codiceFiscale   String?
+  partitaIva      String?  @unique
+
+  // Indirizzo
+  indirizzo       String?  // Via, numero civico
+  cap             String?
+  comune          String?
+  provincia       String?  // Sigla provincia (es. MN)
+
+  // Contatti
+  email           String?
+  pec             String?
+  telefono        String?
+
+  // Relazioni
+  preventivi      Preventivo[]
+  affidamenti     Affidamento[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Dirigenti (Direttore Generale o Direttore Area Territorio)
+model Dirigente {
+  id              String   @id @default(cuid())
+
+  titolo          String   // es. "Dott.", "Ing.", "Arch."
+  nome            String
+  cognome         String
+  ruolo           DirigenteRuolo // GENERALE o AREA_TERRITORIO
+
+  email           String?  @unique
+  attivo          Boolean  @default(true) // Per disabilitare dirigenti non più in carica
+
+  affidamenti     Affidamento[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+enum DirigenteRuolo {
+  GENERALE
+  AREA_TERRITORIO
+}
+
+// Responsabili Unici del Progetto (RUP)
+model RUP {
+  id              String   @id @default(cuid())
+
+  titolo          String   // es. "Ing.", "Arch.", "Geom."
+  nome            String
+  cognome         String
+
+  email           String?  @unique
+  attivo          Boolean  @default(true)
+
+  affidamenti     Affidamento[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Documenti di affidamento generati
+model Affidamento {
+  id              String   @id @default(cuid())
+
+  // Riferimento al preventivo di origine
+  preventivoId    String
+  preventivo      Preventivo @relation(fields: [preventivoId], references: [id], onDelete: Cascade)
+
+  // Tipo di documento
+  tipoDocumento   TipoDocumento @default(AFFIDAMENTO)
+
+  // Dati compilazione (JSON con tutti i placeholder riempiti)
+  datiDocumento   Json
+
+  // File generato
+  filePath        String?  // Path del documento Word generato
+
+  // Relazioni
+  fornitoreId     String
+  fornitore       Fornitore @relation(fields: [fornitoreId], references: [id])
+
+  dirigenteId     String
+  dirigente       Dirigente @relation(fields: [dirigenteId], references: [id])
+
+  rupId           String?  // Opzionale se RUP = Dirigente
+  rup             RUP?     @relation(fields: [rupId], references: [id])
+
+  userId          String   // Referente che ha generato il documento
+  user            User     @relation(fields: [userId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+enum TipoDocumento {
+  AFFIDAMENTO
+  PROPOSTA_AFFIDAMENTO
+  DETERMINA
 }

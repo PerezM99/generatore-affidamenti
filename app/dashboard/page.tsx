@@ -150,12 +150,35 @@ export default function Dashboard() {
 
   const handleConfirmData = () => {
     setShowExtractedData(false);
-    // Qui poi implementerai la generazione documenti
-    alert("Generazione documenti da implementare!");
+    // Reindirizza alla pagina di dettaglio per generare il documento
+    if (currentPreventivoId) {
+      router.push(`/preventivi/${currentPreventivoId}`);
+    }
   };
 
-  const handleEditData = () => {
-    alert("Funzione modifica manuale da implementare!");
+  const handleEditData = async () => {
+    // 📚 FUNZIONE: Ricarica i dati aggiornati dopo il salvataggio
+    // Viene chiamata dal componente ExtractedDataView dopo aver salvato le modifiche
+    if (!currentPreventivoId) return;
+
+    try {
+      // Ricarica il preventivo dal database per ottenere i dati aggiornati
+      const response = await fetch(`/api/preventivi/${currentPreventivoId}`);
+
+      if (!response.ok) {
+        throw new Error("Errore nel ricaricare i dati");
+      }
+
+      const data = await response.json();
+
+      // Aggiorna lo stato con i dati modificati
+      setExtractedData(data.preventivo.extractedData);
+
+      console.log("✅ Dati ricaricati con successo dopo la modifica");
+    } catch (error) {
+      console.error("❌ Errore nel ricaricare i dati:", error);
+      alert("Errore nel ricaricare i dati aggiornati");
+    }
   };
 
   // Proteggi la route - redirect se non autenticato
@@ -381,10 +404,11 @@ _______________________`
   }
 
   // Mostra dati estratti
-  if (showExtractedData && extractedData) {
+  if (showExtractedData && extractedData && currentPreventivoId) {
     return (
       <ExtractedDataView
         data={extractedData}
+        preventivoId={currentPreventivoId}
         onConfirm={handleConfirmData}
         onEdit={handleEditData}
       />

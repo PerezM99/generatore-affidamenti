@@ -3,6 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseWithLLM } from "@/lib/llm-parser";
+import { extractProtocollo } from "@/lib/pdf-extractor";
+
+// 📚 IMPORTANTE: Aumenta il timeout a 5 minuti (300 secondi)
+// Qwen può impiegare 2-4 minuti per analizzare il preventivo
+export const maxDuration = 300; // 5 minuti
 
 /**
  * API route per parsare il testo di un preventivo con LLM
@@ -75,11 +80,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7. Chiama LLM per estrarre dati strutturati
-    let extractedData;
+    // 7. Estrai protocollo con regex (veloce e affidabile)
+    console.log(`📋 Estrazione protocollo dal testo...`);
+    const protocolloData = extractProtocollo(preventivo.rawText);
+
+    // 8. Chiama LLM per estrarre gli altri dati
+    let llmData;
     try {
       console.log(`📄 Parsing preventivo ${preventivo.id} con LLM...`);
-      extractedData = await parseWithLLM(preventivo.rawText);
+      llmData = await parseWithLLM(preventivo.rawText);
     } catch (llmError) {
       console.error("Errore durante parsing LLM:", llmError);
 
@@ -103,7 +112,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 8. Salva dati estratti nel database
+    // 9. Combina dati: LLM + protocollo estratto con regex
+    const extractedData = {
+      ...llmData,
+      ...protocolloData, // Sovrascrive con dati del protocollo
+    };
+
+    console.log(`✅ Dati combinati (LLM + regex protocollo)`);
+
+    // 10. Salva dati estratti nel database
     const updatedPreventivo = await prisma.preventivo.update({
       where: { id: preventivoId },
       data: {
