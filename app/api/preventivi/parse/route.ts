@@ -132,17 +132,13 @@ export async function POST(request: NextRequest) {
         const fornitoreMatched = await matchFornitore(extractedData.fornitore);
 
         // Sostituisci i dati del fornitore con quelli merged
+        // Nota: usa solo i campi presenti nella nuova interfaccia ExtractedData
         extractedData.fornitore = {
           ragioneSociale: fornitoreMatched.ragioneSociale,
-          codiceFiscale: fornitoreMatched.codiceFiscale,
           partitaIva: fornitoreMatched.partitaIva,
           indirizzo: fornitoreMatched.indirizzo,
-          cap: fornitoreMatched.cap,
-          comune: fornitoreMatched.comune,
-          provincia: fornitoreMatched.provincia,
           email: fornitoreMatched.email,
           pec: fornitoreMatched.pec,
-          telefono: fornitoreMatched.telefono,
         };
 
         // Salva dati di matching per mostrarli all'utente

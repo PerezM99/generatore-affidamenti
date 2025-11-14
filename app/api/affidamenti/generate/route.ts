@@ -10,11 +10,12 @@ export const maxDuration = 60;
  * POST /api/affidamenti/generate
  *
  * Genera il documento Word finale:
- * - Prende i dati compilati (incluso il testo già generato dall'LLM)
+ * - Prende i dati compilati dal form (che includono già i campi formattati dall'LLM)
  * - Genera documento Word con sostituzione placeholder
  * - Restituisce il file Word come download
  *
- * NOTA: La chiamata LLM avviene PRIMA, in /api/affidamenti/generate-text
+ * NOTA: L'unica chiamata LLM avviene durante il parsing del PDF (in /api/preventivi/parse)
+ * e genera sia dati strutturati che i 6 campi formattati in un'unica chiamata
  */
 export async function POST(request: NextRequest) {
   try {
@@ -27,18 +28,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       tipoDocumento, // "AFFIDAMENTO" | "PROPOSTA" | "DETERMINA"
-      datiCompilati, // Tutti i dati dal form (incluso testo già generato dall'LLM)
-      testoGenerato, // Testo generato dall'LLM nella chiamata precedente
+      datiCompilati, // Tutti i dati dal form (includono già i campi formattati dall'LLM)
     } = body;
 
     console.log("📄 Generazione documento Word finale");
     console.log("📊 Tipo documento:", tipoDocumento);
-    console.log("📝 Dati compilati:", datiCompilati);
-    console.log("✍️ Testo generato (da LLM):", testoGenerato);
+    console.log("📝 Dati compilati (con campi formattati):", datiCompilati);
 
     // Genera documento Word con i placeholder sostituiti
+    // I campi formattati (Oggetto, Descrizione, ecc.) sono già inclusi in datiCompilati
     console.log("\n📄 Generazione documento Word...");
-    const wordBuffer = await generateWordDocument(datiCompilati, testoGenerato);
+    const wordBuffer = await generateWordDocument(datiCompilati);
     console.log("✅ Documento Word generato con successo");
 
     // FASE 3: Restituisci il file come download
@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`📥 Invio file: ${fileName}`);
 
-    return new NextResponse(wordBuffer, {
+    // Converti Buffer in Uint8Array per compatibilità con NextResponse
+    return new NextResponse(new Uint8Array(wordBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

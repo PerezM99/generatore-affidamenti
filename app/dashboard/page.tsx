@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import LoadingScreen from "../components/LoadingScreen";
 import ProcessingScreen from "../components/ProcessingScreen";
 import DocumentViewer from "../components/DocumentViewer";
-import ExtractedDataView from "../components/ExtractedDataView";
 import { ExtractedData } from "@/lib/llm-parser";
 
 interface GeneratedDocument {
@@ -134,11 +133,14 @@ export default function Dashboard() {
       // Dai tempo al ProcessingScreen di completare l'animazione
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Mostra dati estratti
-      setExtractedData(parseData.preventivo.extractedData);
-      setShowRawText(false);
-      setShowExtractedData(true);
+      // I dati estratti sono già stati mostrati nel terminale durante il parsing
+      // Non serve mostrare la modale ExtractedDataView
       setIsProcessing(false);
+      setCurrentPreventivoId(null);
+      setExtractedData(null);
+
+      // Mostra messaggio di successo
+      alert("Estrazione completata! I dati sono stati mostrati nel terminale.");
 
     } catch (error) {
       console.error("Errore:", error);
@@ -148,38 +150,8 @@ export default function Dashboard() {
     }
   };
 
-  const handleConfirmData = () => {
-    setShowExtractedData(false);
-    // Reindirizza alla pagina di dettaglio per generare il documento
-    if (currentPreventivoId) {
-      router.push(`/preventivi/${currentPreventivoId}`);
-    }
-  };
-
-  const handleEditData = async () => {
-    // 📚 FUNZIONE: Ricarica i dati aggiornati dopo il salvataggio
-    // Viene chiamata dal componente ExtractedDataView dopo aver salvato le modifiche
-    if (!currentPreventivoId) return;
-
-    try {
-      // Ricarica il preventivo dal database per ottenere i dati aggiornati
-      const response = await fetch(`/api/preventivi/${currentPreventivoId}`);
-
-      if (!response.ok) {
-        throw new Error("Errore nel ricaricare i dati");
-      }
-
-      const data = await response.json();
-
-      // Aggiorna lo stato con i dati modificati
-      setExtractedData(data.preventivo.extractedData);
-
-      console.log("✅ Dati ricaricati con successo dopo la modifica");
-    } catch (error) {
-      console.error("❌ Errore nel ricaricare i dati:", error);
-      alert("Errore nel ricaricare i dati aggiornati");
-    }
-  };
+  // Funzioni rimosse: handleConfirmData e handleEditData non più necessarie
+  // I dati vengono mostrati solo nel terminale
 
   // Proteggi la route - redirect se non autenticato
   useEffect(() => {
@@ -403,17 +375,7 @@ _______________________`
     );
   }
 
-  // Mostra dati estratti
-  if (showExtractedData && extractedData && currentPreventivoId) {
-    return (
-      <ExtractedDataView
-        data={extractedData}
-        preventivoId={currentPreventivoId}
-        onConfirm={handleConfirmData}
-        onEdit={handleEditData}
-      />
-    );
-  }
+  // ExtractedDataView rimosso: i dati vengono mostrati solo nel terminale
 
   // Mostra DocumentViewer per la vecchia generazione
   if (generatedDocuments && generatedDocuments.length > 0) {
