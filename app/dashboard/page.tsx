@@ -133,14 +133,13 @@ export default function Dashboard() {
       // Dai tempo al ProcessingScreen di completare l'animazione
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // I dati estratti sono già stati mostrati nel terminale durante il parsing
-      // Non serve mostrare la modale ExtractedDataView
+      // Reindirizza alla pagina di generazione documento
+      // I dati sono stati mostrati nel terminale e ora l'utente può editarli
       setIsProcessing(false);
-      setCurrentPreventivoId(null);
-      setExtractedData(null);
 
-      // Mostra messaggio di successo
-      alert("Estrazione completata! I dati sono stati mostrati nel terminale.");
+      if (currentPreventivoId) {
+        router.push(`/preventivi/${currentPreventivoId}`);
+      }
 
     } catch (error) {
       console.error("Errore:", error);

@@ -45,7 +45,7 @@ export interface ExtractedData {
  */
 export async function parseWithLLM(rawText: string): Promise<ExtractedData> {
   const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
-  const ollamaModel = process.env.OLLAMA_MODEL || "qwen2.5:3b";
+  const ollamaModel = process.env.OLLAMA_MODEL || "qwen2.5:7b-instruct";
 
   try {
     // Costruisce il prompt con il testo del preventivo
@@ -121,7 +121,10 @@ export async function parseWithLLM(rawText: string): Promise<ExtractedData> {
       console.log("📊 RISULTATI ESTRAZIONE DATI DAL PREVENTIVO");
       console.log("=".repeat(80));
       console.log("\n🏢 FORNITORE:");
-      console.log("   Ragione Sociale:", extractedData.fornitore?.ragioneSociale || "N/A");
+      console.log(
+        "   Ragione Sociale:",
+        extractedData.fornitore?.ragioneSociale || "N/A"
+      );
       console.log("   Indirizzo:", extractedData.fornitore?.indirizzo || "N/A");
       console.log("   Email:", extractedData.fornitore?.email || "N/A");
       console.log("   PEC:", extractedData.fornitore?.pec || "N/A");
@@ -135,18 +138,35 @@ export async function parseWithLLM(rawText: string): Promise<ExtractedData> {
       console.log("   Tipo:", extractedData.tipoAffidamento || "N/A");
 
       console.log("\n💰 IMPORTO:");
-      console.log("   Imponibile:", extractedData.importoImponibile ? `€ ${extractedData.importoImponibile.toFixed(2)}` : "N/A");
+      console.log(
+        "   Imponibile:",
+        extractedData.importoImponibile
+          ? `€ ${extractedData.importoImponibile.toFixed(2)}`
+          : "N/A"
+      );
 
-      if (extractedData.vociPreventivo && extractedData.vociPreventivo.length > 0) {
+      if (
+        extractedData.vociPreventivo &&
+        extractedData.vociPreventivo.length > 0
+      ) {
         console.log("\n📦 VOCI PREVENTIVO:");
         extractedData.vociPreventivo.forEach((voce, index) => {
           console.log(`   ${index + 1}. ${voce.descrizione}`);
           console.log(`      Quantità: ${voce.quantita || "N/A"}`);
-          console.log(`      Prezzo unitario: ${voce.prezzoUnitario ? `€ ${voce.prezzoUnitario.toFixed(2)}` : "N/A"}`);
+          console.log(
+            `      Prezzo unitario: ${
+              voce.prezzoUnitario
+                ? `€ ${voce.prezzoUnitario.toFixed(2)}`
+                : "N/A"
+            }`
+          );
         });
       }
 
-      if (extractedData.condizioniRilevanti && extractedData.condizioniRilevanti.length > 0) {
+      if (
+        extractedData.condizioniRilevanti &&
+        extractedData.condizioniRilevanti.length > 0
+      ) {
         console.log("\n📌 CONDIZIONI RILEVANTI:");
         extractedData.condizioniRilevanti.forEach((condizione, index) => {
           console.log(`   ${index + 1}. ${condizione}`);
@@ -194,24 +214,49 @@ export async function parseWithLLM(rawText: string): Promise<ExtractedData> {
  */
 export const EXTRACTION_PROMPT_TEMPLATE = `Sei un assistente specializzato nell'analisi di preventivi italiani per enti pubblici.
 
-Il tuo obiettivo è estrarre SOLO i dati realmente utili per redigere:
-- OGGETTO dell'affidamento
-- PREMESSE della Proposta/Determina
-- Parte DISPOSITIVA della Determina
-- Parte CENTRALE dell'Ordine (descrizione + condizioni)
-
-Analizza il seguente TESTO GREZZO del preventivo e restituisci un JSON pulito e minimale.
+Analizza il seguente TESTO del preventivo e restituisci SOLO un JSON con i dati estratti.
 
 TESTO:
 {TEXT}
 
-REGOLE GENERALI:
-- NON inventare nulla.
-- Se un dato non è presente, omettilo.
-- Usa numeri con il punto per i decimali (no virgola).
-- NON aggiungere testo fuori dal JSON.
+REGOLE CRITICHE:
+- NON inventare NESSUN dato. Se non è scritto nel testo, NON inserirlo nel JSON.
+- Se un campo non è presente nel preventivo, omettilo completamente.
+- Restituisci SOLO JSON valido, nessun testo aggiuntivo.
 
-ESTRAI i seguenti CAMPI:
+=== DESCRIZIONE SINTETICA ===
+
+La frase completa nel documento sarà:
+"Affidamento diretto, ai sensi dell'art. 50, comma 1, lettera b) del D.Lgs. 36/2023, [TUA CONTINUAZIONE]"
+
+Tu devi scrivere SOLO la parte [TUA CONTINUAZIONE].
+
+FORMATO:
+- Inizia con: "della fornitura di" oppure "del servizio di" oppure "per i lavori di"
+- Continua con una breve descrizione (es: "materiale informatico" o "manutenzione caldaie")
+
+NON scrivere frasi complete, NON ripetere l'intestazione.
+
+=== DESCRIZIONE ESTESA ===
+
+La frase completa nel documento sarà:
+"Con riferimento al preventivo n. X del GG/MM/AAAA, recepito a protocollo con n. Y del GG/MM/AAAA, si affida alla spettabile ditta [NOME], c.f./p.iva [P.IVA], [TUA CONTINUAZIONE]"
+
+Tu devi scrivere SOLO la parte [TUA CONTINUAZIONE] dopo "p.iva XXXXXXX, ".
+
+SE il preventivo contiene un ELENCO di prodotti/servizi con quantità e prezzi:
+Usa questo formato con elenco puntato (un trattino per ogni voce):
+"la fornitura di:
+- N. [quantità] [descrizione prodotto], al costo unitario di € [prezzo],XX + IVA
+- N. [quantità] [descrizione prodotto], al costo unitario di € [prezzo],XX + IVA"
+
+SE il preventivo descrive un servizio generico SENZA elenco voci:
+Scrivi 2-4 righe discorsive che spiegano di cosa si tratta.
+Inizia con "il servizio di..." o "la fornitura di..." e spiega i dettagli.
+
+IMPORTANTE: NON ripetere la frase precedente, NON iniziare con "Si affida" o "Con riferimento".
+
+=== STRUTTURA JSON ===
 
 {
   "fornitore": {
@@ -222,11 +267,11 @@ ESTRAI i seguenti CAMPI:
     "partitaIva": "..."
   },
 
-  "descrizioneSintetica": "Riassumi brevemente l'oggetto del preventivo (una frase).",
+  "descrizioneSintetica": "...",
 
-  "descrizioneEstesa": "Descrizione più dettagliata delle forniture/servizi/lavori (max 5-6 righe).",
+  "descrizioneEstesa": "...",
 
-  "tipoAffidamento": "fornitura | servizi | lavori",
+  "tipoAffidamento": "fornitura o servizi o lavori",
 
   "vociPreventivo": [
     {
@@ -239,17 +284,18 @@ ESTRAI i seguenti CAMPI:
   "importoImponibile": numero,
 
   "condizioniRilevanti": [
-     "condizioni di consegna / installazione / assistenza",
-     "garanzie importanti",
-     "tempi di consegna",
-     "altre condizioni operative"
+    "solo se presenti nel testo"
   ]
 }
 
-RICORDA:
-- Mantieni il JSON piccolo, senza campi superflui.
-- NON calcolare l'IVA o importi totali oltre all'imponibile.
-- NON aggiungere testo libero fuori dal JSON.`;
+ATTENZIONE FINALE:
+- descrizioneSintetica: breve, inizia con "della/del/per", NON è una frase completa
+- descrizioneEstesa: se ci sono voci, usa formato con trattini "- N. X ..., al costo unitario..."
+- vociPreventivo: estrai TUTTE le voci con quantità e prezzo dal preventivo
+- condizioniRilevanti: estrai SOLO se sono scritte nel preventivo (tempi consegna, garanzie, ecc.). Se NON ci sono, ometti il campo o metti array vuoto.
+- importoImponibile: estrai il totale IVA esclusa. NON inventare, usa solo il valore nel testo.
+
+Restituisci SOLO il JSON valido.`;
 
 /**
  * Valida e normalizza i dati estratti dall'LLM
