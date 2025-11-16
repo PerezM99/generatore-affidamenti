@@ -16,15 +16,12 @@ const uploadSteps: ProcessingStep[] = [
   { id: 3, text: "Salvataggio nel database...", duration: 700 },
 ];
 
-// Passi per parsing con LLM (lento, diversi minuti)
+// Passi per parsing con OpenAI API (veloce, ~10 secondi)
 const llmSteps: ProcessingStep[] = [
-  { id: 1, text: "Connessione al modello AI locale (Ollama)...", duration: 3000 },
-  { id: 2, text: "Invio del testo al modello Qwen...", duration: 2000 },
-  { id: 3, text: "Analisi del contenuto del preventivo...", duration: 45000 },
-  { id: 4, text: "Estrazione importi e aliquote IVA...", duration: 35000 },
-  { id: 5, text: "Identificazione dati fornitore...", duration: 30000 },
-  { id: 6, text: "Riconoscimento date e riferimenti...", duration: 25000 },
-  { id: 7, text: "Validazione e salvataggio dati...", duration: 20000 },
+  { id: 1, text: "Connessione all'API OpenAI...", duration: 2000 },
+  { id: 2, text: "Analisi del preventivo con GPT-5-nano...", duration: 5000 },
+  { id: 3, text: "Estrazione dati strutturati...", duration: 2000 },
+  { id: 4, text: "Validazione e salvataggio...", duration: 1000 },
 ];
 
 interface ProcessingScreenProps {
@@ -124,7 +121,7 @@ export default function ProcessingScreen({ phase = "upload", isComplete = false 
             Elaborazione in corso
           </h2>
           <p className="text-foreground/60">
-            Stiamo analizzando il tuo preventivo con l'AI
+            Stiamo analizzando il tuo preventivo con OpenAI
           </p>
         </motion.div>
 
@@ -253,12 +250,11 @@ export default function ProcessingScreen({ phase = "upload", isComplete = false 
               ) : (
                 <>
                   <p className="text-sm font-medium text-foreground mb-1">
-                    Analisi con AI locale
+                    Analisi con OpenAI
                   </p>
                   <p className="text-xs text-foreground/60">
-                    Il modello Qwen (Ollama) sta analizzando il documento per estrarre automaticamente
-                    importi, dati del fornitore, riferimenti protocollo e verificare tutti i calcoli.
-                    Questo processo può richiedere 2-4 minuti.
+                    GPT-5-nano sta analizzando il documento per estrarre automaticamente
+                    importi, dati del fornitore e riferimenti. Questo processo richiede circa 10 secondi.
                   </p>
                 </>
               )}

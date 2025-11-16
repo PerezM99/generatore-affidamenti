@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
@@ -12,6 +12,7 @@ interface ExtractedData {
   fornitore?: {
     ragioneSociale?: string;
     indirizzo?: string;
+    capComuneProvincia?: string;
     email?: string;
     pec?: string;
     partitaIva?: string;
@@ -99,8 +100,15 @@ export default function PreventivoDetailPage() {
   const [fRagione, setFRagione] = useState("");
   const [fCfIva, setFCfIva] = useState("");
   const [fIndirizzo, setFIndirizzo] = useState("");
+  const [fCapComuneProv, setFCapComuneProv] = useState("");
   const [fMail, setFMail] = useState("");
   const [fPec, setFPec] = useState("");
+
+  // Mostra campi opzionali
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
+
+  // Ref per textarea auto-espandibile
+  const descrizioneRef = useRef<HTMLTextAreaElement>(null);
 
   // Riferimenti
   const [pNumero, setPNumero] = useState("");
@@ -168,6 +176,7 @@ export default function PreventivoDetailPage() {
           // Condizioni rilevanti
           if (extracted.condizioniRilevanti && extracted.condizioniRilevanti.length > 0) {
             setCondizioni(extracted.condizioniRilevanti.join("\n"));
+            setShowOptionalFields(true); // Mostra campi opzionali se ci sono dati estratti
           }
 
           // Fornitore
@@ -175,6 +184,7 @@ export default function PreventivoDetailPage() {
             setFRagione(extracted.fornitore.ragioneSociale || "");
             setFCfIva(extracted.fornitore.partitaIva || "");
             setFIndirizzo(extracted.fornitore.indirizzo || "");
+            setFCapComuneProv(extracted.fornitore.capComuneProvincia || "");
             setFMail(extracted.fornitore.email || "");
             setFPec(extracted.fornitore.pec || "");
           }
@@ -214,6 +224,14 @@ export default function PreventivoDetailPage() {
 
     fetchPreventivo();
   }, [params.id, sessionStatus]);
+
+  // Auto-espandi textarea descrizione
+  useEffect(() => {
+    if (descrizioneRef.current) {
+      descrizioneRef.current.style.height = "auto";
+      descrizioneRef.current.style.height = descrizioneRef.current.scrollHeight + "px";
+    }
+  }, [descrizione]);
 
   const handleConflictResolve = async (resolvedData: Record<string, string>) => {
     try {
@@ -282,6 +300,7 @@ export default function PreventivoDetailPage() {
         F_Ragione: fRagione,
         F_CF_IVA: fCfIva,
         F_Indirizzo: fIndirizzo,
+        F_CAP_Comune_Prov: fCapComuneProv,
         F_Mail: fMail,
         F_Pec: fPec,
 
@@ -517,13 +536,24 @@ export default function PreventivoDetailPage() {
                     className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-sm font-medium text-foreground mb-2">Indirizzo</label>
                   <input
                     type="text"
                     value={fIndirizzo}
                     onChange={(e) => setFIndirizzo(e.target.value)}
                     className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
+                    placeholder="Via Europa, 30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">CAP Comune (Provincia)</label>
+                  <input
+                    type="text"
+                    value={fCapComuneProv}
+                    onChange={(e) => setFCapComuneProv(e.target.value)}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
+                    placeholder="46100 Mantova (MN)"
                   />
                 </div>
                 <div>
@@ -615,10 +645,11 @@ export default function PreventivoDetailPage() {
                     </p>
                   </div>
                   <textarea
+                    ref={descrizioneRef}
                     value={descrizione}
                     onChange={(e) => setDescrizione(e.target.value)}
-                    rows={6}
-                    className="w-full px-4 py-3 bg-background border-2 border-gold/30 rounded-lg text-foreground text-base"
+                    className="w-full px-4 py-3 bg-background border-2 border-gold/30 rounded-lg text-foreground text-base resize-none overflow-hidden"
+                    style={{ minHeight: "150px" }}
                     placeholder="la fornitura di:&#10;- N. 1 ...&#10;- N. 2 ..."
                   />
                   <p className="text-xs text-foreground/50 mt-2">
@@ -774,47 +805,75 @@ export default function PreventivoDetailPage() {
               </div>
             </div>
 
-            {/* Condizioni e Note */}
+            {/* Condizioni e Note Opzionali */}
             <div>
-              <h3 className="text-lg font-bold text-gold mb-4">Condizioni e Note <span className="text-xs text-foreground/60 font-normal">(opzionale)</span></h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Condizioni</label>
-                  <textarea
-                    value={condizioni}
-                    onChange={(e) => setCondizioni(e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Tempistiche</label>
-                  <textarea
-                    value={tempistiche}
-                    onChange={(e) => setTempistiche(e.target.value)}
-                    rows={2}
-                    className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Prescrizioni Tecniche</label>
-                  <textarea
-                    value={prescrizioniTecniche}
-                    onChange={(e) => setPrescrizioniTecniche(e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Garanzie</label>
-                  <textarea
-                    value={garanzie}
-                    onChange={(e) => setGaranzie(e.target.value)}
-                    rows={2}
-                    className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
-                  />
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gold">
+                  Condizioni e Note <span className="text-xs text-foreground/60 font-normal">(opzionale)</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowOptionalFields(!showOptionalFields)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gold/10 hover:bg-gold/20 border border-gold/30 rounded-lg text-gold transition-colors"
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${showOptionalFields ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  {showOptionalFields ? "Nascondi campi" : "Aggiungi campi opzionali"}
+                </button>
               </div>
+
+              {showOptionalFields && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Condizioni</label>
+                    <textarea
+                      value={condizioni}
+                      onChange={(e) => setCondizioni(e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Tempistiche</label>
+                    <textarea
+                      value={tempistiche}
+                      onChange={(e) => setTempistiche(e.target.value)}
+                      rows={2}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Prescrizioni Tecniche</label>
+                    <textarea
+                      value={prescrizioniTecniche}
+                      onChange={(e) => setPrescrizioniTecniche(e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Garanzie</label>
+                    <textarea
+                      value={garanzie}
+                      onChange={(e) => setGaranzie(e.target.value)}
+                      rows={2}
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground"
+                    />
+                  </div>
+                </motion.div>
+              )}
             </div>
 
             {/* Importo */}

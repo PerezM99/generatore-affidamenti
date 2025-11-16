@@ -6,9 +6,9 @@ import { parseWithLLM } from "@/lib/llm-parser";
 import { extractProtocollo } from "@/lib/pdf-extractor";
 import { matchFornitore, upsertFornitore } from "@/lib/fornitore-matcher";
 
-// 📚 IMPORTANTE: Aumenta il timeout a 5 minuti (300 secondi)
-// Qwen può impiegare 2-4 minuti per analizzare il preventivo
-export const maxDuration = 300; // 5 minuti
+// 📚 IMPORTANTE: Timeout di 60 secondi per l'API OpenAI
+// OpenAI è molto più veloce di un LLM locale
+export const maxDuration = 60; // 1 minuto
 
 /**
  * API route per parsare il testo di un preventivo con LLM
@@ -16,7 +16,7 @@ export const maxDuration = 300; // 5 minuti
  * POST /api/preventivi/parse
  * Body: { preventivoId: string }
  *
- * Estrae i dati strutturati dal testo del preventivo usando Ollama
+ * Estrae i dati strutturati dal testo del preventivo usando OpenAI API
  */
 export async function POST(request: NextRequest) {
   try {
@@ -133,10 +133,12 @@ export async function POST(request: NextRequest) {
 
         // Sostituisci i dati del fornitore con quelli merged
         // Nota: usa solo i campi presenti nella nuova interfaccia ExtractedData
+        // Il campo capComuneProvincia viene dal PDF, non dal DB
         extractedData.fornitore = {
           ragioneSociale: fornitoreMatched.ragioneSociale,
           partitaIva: fornitoreMatched.partitaIva,
           indirizzo: fornitoreMatched.indirizzo,
+          capComuneProvincia: extractedData.fornitore?.capComuneProvincia, // Mantieni quello estratto dall'LLM
           email: fornitoreMatched.email,
           pec: fornitoreMatched.pec,
         };

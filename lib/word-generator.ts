@@ -139,6 +139,16 @@ export async function generateWordDocument(
 }
 
 /**
+ * Converte newline escapati in caratteri newline reali
+ * Necessario perché JSON.stringify converte \n in \\n
+ */
+function unescapeNewlines(text: string | undefined): string {
+  if (!text) return "";
+  // Sostituisce \\n con veri newline
+  return text.replace(/\\n/g, "\n");
+}
+
+/**
  * Mappa i dati compilati ai placeholder del documento Word
  * Tutti i 29 placeholder del template FIXED
  * I campi formattati (Oggetto, Descrizione, ecc.) sono già inclusi in datiCompilati
@@ -168,11 +178,11 @@ function mapDataToPlaceholders(
 
     // ===== DESCRIZIONE E NOTE (5 placeholder) =====
     P_Data: dati.P_Data || "",
-    Descrizione: dati.Descrizione || "", // Campo formattato dall'LLM (già in dati)
-    Condizioni: dati.Condizioni || "", // Campo formattato dall'LLM (opzionale, già in dati)
-    Tempistiche: dati.Tempistiche || "", // Campo formattato dall'LLM (opzionale, già in dati)
-    Prescrizioni_Tecniche: dati.Prescrizioni_Tecniche || "", // Campo formattato dall'LLM (opzionale, già in dati)
-    Garanzie: dati.Garanzie || "", // Campo formattato dall'LLM (opzionale, già in dati)
+    Descrizione: unescapeNewlines(dati.Descrizione), // Converte \\n in newline reali
+    Condizioni: unescapeNewlines(dati.Condizioni), // Converte \\n in newline reali
+    Tempistiche: unescapeNewlines(dati.Tempistiche), // Converte \\n in newline reali
+    Prescrizioni_Tecniche: unescapeNewlines(dati.Prescrizioni_Tecniche), // Converte \\n in newline reali
+    Garanzie: unescapeNewlines(dati.Garanzie), // Converte \\n in newline reali
 
     // ===== IMPORTI (2 placeholder) =====
     Totale_Numero: dati.Totale_Numero?.toFixed(2) || "0.00",
